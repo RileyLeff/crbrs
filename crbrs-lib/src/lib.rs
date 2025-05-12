@@ -108,6 +108,7 @@ pub enum Error {
 // Define pub modules for organization (create the files next)
 pub mod config;
 pub mod compiler;
+pub mod installer;
 // pub mod download; // Maybe later
 
 // Example function signature using the types (implementation later)

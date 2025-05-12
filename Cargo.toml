@@ -27,6 +27,7 @@ directories = "6.0"
 reqwest = { version = "0.12", features = ["blocking", "json"] } # Start with blocking for simplicity
 toml = "0.8"
 zip = "2.6"
+sha2 = "0.10"
 
 # tar = "0.4" # Add if needed for .tar.gz archives
 
