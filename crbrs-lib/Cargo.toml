@@ -1,6 +1,17 @@
 [package]
 name = "crbrs-lib"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true # Inherit version from workspace
+edition.workspace = true # Inherit edition from workspace
+authors.workspace = true # Inherit authors from workspace
 
 [dependencies]
+# Inherit from workspace dependencies
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+log = { workspace = true }
+config = { workspace = true, features = ["toml"] }
+directories = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json"] }
+zip = { workspace = true }
+toml = { workspace = true }
+# tar = { workspace = true } # If needed

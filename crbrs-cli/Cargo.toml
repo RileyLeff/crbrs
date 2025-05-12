@@ -1,6 +1,22 @@
 [package]
 name = "crbrs-cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true # Inherit version from workspace
+edition.workspace = true # Inherit edition from workspace
+authors.workspace = true # Inherit authors from workspace
 
 [dependencies]
+# Reference the library crate within the workspace
+crbrs-lib = { path = "../crbrs-lib" }
+
+# Inherit from workspace dependencies
+clap = { workspace = true, features = ["derive"] }
+config = { workspace = true, features = ["toml"] }
+log = { workspace = true }
+env_logger = { workspace = true }
+thiserror = { workspace = true } # Often useful in CLI for handling lib errors
+serde = { workspace = true, features = ["derive"] } # May need for args/config interaction
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"

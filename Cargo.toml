@@ -1,0 +1,43 @@
+# FILE: crbrs/Cargo.toml
+
+[workspace]
+resolver = "2"
+members = [
+    "crbrs-cli",
+    "crbrs-lib",
+    # Add future crates like "crbrs-lsp" here later
+]
+
+# Optional: Define shared metadata or profiles for the whole workspace
+[workspace.package]
+version = "0.1.0"
+edition = "2021" # Consider using 2021 edition unless you have specific reasons for 2024
+authors = ["Riley Leff <rileyleff@gmail.com>"] # Replace with your info
+
+[workspace.dependencies]
+# Define dependencies used by multiple crates here to ensure version consistency
+# Core dependencies likely used by both lib and cli eventually
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+log = "0.4"
+
+# Dependencies primarily for the library
+config = { version = "0.14", features = ["toml"] } # config-rs renamed to config
+directories = "6.0"
+reqwest = { version = "0.12", features = ["blocking", "json"] } # Start with blocking for simplicity
+toml = "0.8"
+zip = "2.6"
+
+# tar = "0.4" # Add if needed for .tar.gz archives
+
+# Dependencies primarily for the CLI
+clap = { version = "4.5", features = ["derive"] }
+env_logger = "0.11"
+
+# Note: Using workspace.dependencies means individual crates still need to declare
+# their dependency, but they can omit the version specifier to inherit from here.
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
