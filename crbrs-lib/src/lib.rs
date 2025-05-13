@@ -142,17 +142,12 @@ pub fn compile_file(
     compiler_id: Option<String>,
     settings: &Settings,
 ) -> Result<(), Error> {
-    // Placeholder - actual logic will go into compiler.rs
-    println!(
-        "Placeholder: Compiling {:?} using compiler {:?} with settings.",
-        input_file, compiler_id
-    );
-    // Find compiler executable path based on compiler_id or file extension + settings.file_associations
-    // Determine if Wine is needed
-    // Run std::process::Command (potentially via Wine)
-    // Check exit code and stderr/stdout
-    // Parse output_log if provided and successful/failed
-    Ok(())
+    compiler::compile_file_impl(
+            &input_file,
+            output_log.as_deref(), // Convert Option<PathBuf> to Option<&Path>
+            compiler_id.as_deref(), // Convert Option<String> to Option<&str>
+            settings,
+        )
 }
 
 

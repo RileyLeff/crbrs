@@ -32,7 +32,7 @@ enum Commands {
     /// Manage compilers
     Compiler {
         #[command(subcommand)]
-        action: CompilerAction,
+        action: CompilerAction, // This needs to be the updated enum
     },
     /// Manage configuration
     Config {
@@ -45,14 +45,14 @@ enum Commands {
 enum CompilerAction {
     /// Install a compiler from the repository using its ID
     Install {
-        /// Unique ID of the compiler from the repository manifest
         compiler_id: String,
     },
-    /// List installed compilers
+    /// List *installed* compilers
     List,
+    /// List *available* compilers from the remote repository
+    ListAvailable, // <<< ENSURE THIS IS PRESENT
     /// Remove an installed compiler by its ID
     Remove {
-        /// Unique ID of the compiler to remove
         compiler_id: String,
     },
 }
@@ -90,11 +90,9 @@ fn main() {
         2 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     };
-    // Ensure RUST_LOG isn't overriding if we want CLI flags to take precedence
-    // Or, allow RUST_LOG to override by using .parse_default_env() or similar if desired.
     env_logger::Builder::new()
         .filter_level(log_level)
-        .format_timestamp_secs() // Example: Add timestamps
+        .format_timestamp_secs()
         .init();
 
     log::debug!("CLI arguments parsed: {:?}", cli);
@@ -112,7 +110,6 @@ fn main() {
 
 
     // --- 4. Run Command ---
-    // Pass mutable settings because some commands (install, remove, config set) will modify them.
     if let Err(e) = run_command(cli.command, &mut settings) {
         log::error!("Command execution failed: {}", e);
         eprintln!("Error: {}", e);
@@ -123,7 +120,7 @@ fn main() {
 }
 
 // --- Command Dispatch Logic ---
-fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> { // settings is now mutable
+fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> {
     match command {
         Commands::Compile {
             input_file,
@@ -131,7 +128,6 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
             compiler,
         } => {
             log::info!("Executing Compile command for file: {:?}", input_file);
-            // Placeholder for actual compilation logic using crbrs_lib::compiler::compile_file
             crbrs_lib::compile_file(input_file, output_log, compiler, settings)?;
             println!("Compile command finished (placeholder).");
         }
@@ -139,33 +135,64 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
             match action {
                 CompilerAction::Install { compiler_id } => {
                     log::info!("Executing Compiler Install command for ID: {}", compiler_id);
-                    // Call the library function for installation
-                    // This function will internally modify settings and save them.
                     crbrs_lib::installer::install_compiler(settings, &compiler_id)?;
                     println!("Compiler '{}' installation process finished.", compiler_id);
                 }
                 CompilerAction::List => {
                     log::info!("Executing Compiler List command...");
-                    println!("Installed Compilers:");
+                    println!("Installed Compilers (Locally):");
                     if settings.installed_compilers.is_empty() {
                         println!("  (None)");
                     } else {
                         for (id, info) in settings.installed_compilers.iter() {
                             println!(
-                                "  - ID: {}, Version: {}, Description: {}, Executable: {:?}, Path: {:?}",
+                                "  - ID: {}, Version: {}, Description: {}, Path: {:?}",
                                 id,
                                 info.version,
-                                info.description, // Assuming CompilerInfo has description
-                                info.executable_name,
-                                info.install_subdir // Show relative path for installed compiler
+                                info.description,
+                                info.install_subdir
                             );
                         }
                     }
                 }
+                // --- HANDLER FOR ListAvailable ---
+                CompilerAction::ListAvailable => {
+                    log::info!("Executing Compiler ListAvailable command...");
+                    println!(
+                        "Fetching available compilers from: {}",
+                        settings.compiler_repository_url
+                    );
+
+                    // Call the function in the library that fetches and parses the manifest
+                    match crbrs_lib::installer::fetch_manifest(&settings.compiler_repository_url) {
+                        Ok(manifest) => {
+                            println!("Available Compilers (Remote - Manifest Version: {}):", manifest.manifest_version);
+                            if manifest.compilers.is_empty() {
+                                println!("  (None found in manifest)");
+                            } else {
+                                // Sort by ID for consistent output
+                                let mut sorted_compilers: Vec<_> = manifest.compilers.iter().collect();
+                                sorted_compilers.sort_by(|(id_a, _), (id_b, _)| id_a.cmp(id_b));
+
+                                for (id, entry) in sorted_compilers {
+                                    println!(
+                                        "  - ID: {:<30} Version: {:<15} Description: {}",
+                                        id,
+                                        entry.version,
+                                        entry.description
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to fetch or parse remote manifest: {}", e);
+                            return Err(e); // Propagate the error
+                        }
+                    }
+                }
+                // --- END OF ListAvailable HANDLER ---
                 CompilerAction::Remove { compiler_id } => {
                     log::info!("Executing Compiler Remove command for ID: {}", compiler_id);
-                    // Call the library function for removal
-                    // This function will internally modify settings and save them.
                     crbrs_lib::installer::remove_compiler(settings, &compiler_id)?;
                     println!("Compiler '{}' removal process finished.", compiler_id);
                 }
@@ -211,39 +238,38 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                         _ => {
                             let err_msg = format!("Unknown configuration key: {}", key);
                             log::error!("{}", err_msg);
+                            // Ensure you're using a valid variant of your Error enum here
+                            // This depends on how crbrs_lib::Error::Config is structured
+                            // If it takes a config::ConfigError, you might need:
                             return Err(Error::Config(config::ConfigError::Message(err_msg)));
+                            // Or if it's a custom string variant:
+                            // return Err(Error::ConfigError(err_msg));
                         }
                     }
-                    println!("Set '{}' = '{}'", key, value); // 'value' is still valid due to clone
-                    crbrs_lib::config::save_settings(settings)?; // Save changes
+                    println!("Set '{}' = '{}'", key, value);
+                    crbrs_lib::config::save_settings(settings)?;
                 }
                 ConfigAction::SetAssociation {
                     extension,
                     compiler_id,
                 } => {
                     log::info!(
-                        "Executing Config SetAssociation command (Ext: {}, ID: {})",
-                        extension,
+                        "Executing Config SetAssociation command (Ext: .{}, ID: {})",
+                        extension.trim_start_matches('.').to_lowercase(), // Use cleaned extension for log
                         compiler_id
                     );
                     let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     if cleaned_ext.is_empty() || cleaned_ext.contains('.') {
                         return Err(Error::InvalidExtension(extension));
                     }
-                    // Optional: Check if compiler_id exists in settings.installed_compilers
-                    // if !settings.installed_compilers.contains_key(&compiler_id) {
-                    //     log::warn!("Associating with compiler ID '{}' which is not currently installed.", compiler_id);
-                    // }
-                    settings
-                        .file_associations
-                        .insert(cleaned_ext.clone(), compiler_id.clone());
+                    settings.file_associations.insert(cleaned_ext.clone(), compiler_id.clone());
                     println!("Associated '.{}' with compiler '{}'", cleaned_ext, compiler_id);
                     crbrs_lib::config::save_settings(settings)?;
                 }
                 ConfigAction::UnsetAssociation { extension } => {
                     log::info!(
-                        "Executing Config UnsetAssociation command (Ext: {})",
-                        extension
+                        "Executing Config UnsetAssociation command (Ext: .{})",
+                        extension.trim_start_matches('.').to_lowercase() // Use cleaned extension for log
                     );
                     let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     if settings.file_associations.remove(&cleaned_ext).is_some() {
