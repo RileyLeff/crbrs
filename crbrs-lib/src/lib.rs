@@ -31,25 +31,49 @@ impl Default for Settings {
     }
 }
 
+// --- CompilerInfo (Installed Compiler) - Slight Refinement ---
+// This struct represents a compiler *after* it has been installed.
+// It might store slightly different or additional info compared to the manifest entry.
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompilerInfo {
-    pub id: String,
-    pub description: String, // Added description for user clarity
-    pub version: String,
-    // Relative path to the compiler *directory* within the storage path
-    pub install_subdir: PathBuf,
-    pub executable_name: String,
-    #[serde(default = "default_true")] // Assume requires wine unless specified otherwise
-    pub requires_wine: bool,
-    #[serde(default)] // Optional field
-    pub supported_loggers: Option<Vec<String>>,
-    // We might add download_url and sha256 here if we want to store the manifest info locally
-    // after install, but let's keep it simple for now.
+    pub id: String,                 // e.g., "cr2comp-v4.0" (matches manifest key)
+    pub description: String,        // From manifest
+    pub version: String,            // From manifest
+    pub install_subdir: PathBuf,    // Path to the *directory* of this compiler relative to compiler_storage_path
+                                    // (e.g., "cr2comp-v4.0/")
+    pub executable_name: String,    // e.g., "cr2comp.exe" (relative to install_subdir)
+    pub requires_wine: bool,        // From manifest
+    pub supported_loggers: Option<Vec<String>>, // From manifest
 }
 
 // Helper for serde default
 fn default_true() -> bool {
     true
+}
+
+
+// --- Manifest Structures (NEW) ---
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Manifest {
+    pub manifest_version: String,
+    #[serde(default)] // Allow empty 'compilers' table in TOML
+    pub compilers: HashMap<String, ManifestCompilerEntry>, // Key is the Compiler ID
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ManifestCompilerEntry {
+    pub description: String,
+    pub version: String,
+    pub download_url: String,
+    pub executable_name: String, // e.g., "cr2comp.exe"
+    #[serde(default = "default_true")] // Assume requires wine if not specified
+    pub requires_wine: bool,
+    #[serde(default)]
+    pub supported_loggers: Option<Vec<String>>,
+    #[serde(default)]
+    pub sha256: Option<String>, // Optional checksum for verification
 }
 
 // --- Error Enum ---
