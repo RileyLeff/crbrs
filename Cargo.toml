@@ -3,7 +3,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crbrs-cli",
+    "crbrs",
     "crbrs-lib",
     # Add future crates like "crbrs-lsp" here later
 ]
@@ -28,6 +28,7 @@ reqwest = { version = "0.12", features = ["blocking", "json"] } # Start with blo
 toml = "0.8"
 zip = "2.6"
 sha2 = "0.10"
+regex = "1.10"
 
 # tar = "0.4" # Add if needed for .tar.gz archives
 

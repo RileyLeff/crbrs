@@ -76,6 +76,14 @@ pub struct ManifestCompilerEntry {
     pub sha256: Option<String>, // Optional checksum for verification
 }
 
+#[derive(Debug, Clone)] // Clone might be useful
+pub struct CompilationErrorDetail {
+    pub file_path_in_log: String, // e.g., "example.cr2" from the log's first line
+    pub line: Option<u32>,
+    pub message: String,
+    // Add character_pos or other fields if the compiler ever provides them
+}
+
 // --- Error Enum ---
 
 #[derive(Error, Debug)]
@@ -107,10 +115,18 @@ pub enum Error {
     #[error("Failed to execute subprocess: {0}")]
     Subprocess(std::io::Error), // Separate from general Io for clarity
 
-    #[error("Compiler execution failed (Exit Code: {exit_code:?}). Stderr:\n{stderr}")]
+    #[error("Compilation of '{file_path}' failed.")]
     CompilationFailed {
-        exit_code: Option<i32>,
-        stderr: String,
+        file_path: PathBuf, // The input file path
+        errors: Vec<CompilationErrorDetail>,
+        raw_log: String, // Always include the full log for reference
+    },
+
+    // Keep a simpler variant if log parsing itself fails or is ambiguous
+    #[error("Compiler reported failure for '{file_path}'. Log:\n{raw_log}")]
+    GenericCompilationFailedWithLog {
+        file_path: PathBuf,
+        raw_log: String,
     },
 
     #[error("Compiler execution failed. Output Log:\n{log_content}")]

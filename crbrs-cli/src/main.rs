@@ -1,7 +1,7 @@
 // FILE: crbrs-cli/src/main.rs
 
 use clap::{Parser, Subcommand};
-use crbrs_lib::{Error, Settings}; // Error and Settings from crbrs-lib
+use crbrs_lib::{Error, Settings, CompilationErrorDetail}; // Import CompilationErrorDetail
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -32,7 +32,7 @@ enum Commands {
     /// Manage compilers
     Compiler {
         #[command(subcommand)]
-        action: CompilerAction, // This needs to be the updated enum
+        action: CompilerAction,
     },
     /// Manage configuration
     Config {
@@ -50,7 +50,7 @@ enum CompilerAction {
     /// List *installed* compilers
     List,
     /// List *available* compilers from the remote repository
-    ListAvailable, // <<< ENSURE THIS IS PRESENT
+    ListAvailable,
     /// Remove an installed compiler by its ID
     Remove {
         compiler_id: String,
@@ -80,10 +80,7 @@ enum ConfigAction {
 }
 
 fn main() {
-    // --- 1. Parse Arguments ---
     let cli = Cli::parse();
-
-    // --- 2. Setup Logging ---
     let log_level = match cli.verbose {
         0 => log::LevelFilter::Warn,
         1 => log::LevelFilter::Info,
@@ -97,7 +94,6 @@ fn main() {
 
     log::debug!("CLI arguments parsed: {:?}", cli);
 
-    // --- 3. Load Settings ---
     let mut settings = match crbrs_lib::config::load_settings() {
         Ok(s) => s,
         Err(e) => {
@@ -108,19 +104,24 @@ fn main() {
     };
     log::debug!("Settings loaded successfully.");
 
-
-    // --- 4. Run Command ---
     if let Err(e) = run_command(cli.command, &mut settings) {
-        log::error!("Command execution failed: {}", e);
+        // Specific handling for structured compilation errors is now inside the Compile arm
+        // Generic error printing for all other unhandled errors from run_command
+        if !matches!(e, Error::CompilationFailed {..} | Error::GenericCompilationFailedWithLog {..}) {
+             log::error!("Command execution failed: {}", e); // Log the full error
+        }
+        // The error message for compilation failures is printed within the Compile arm.
+        // For other errors, the Display impl of the error enum will be used here.
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 
     log::debug!("Command executed successfully.");
 }
+// FILE: crbrs-cli/src/main.rs
+// ... (imports, structs, main function - same as previous complete main.rs) ...
 
-// --- Command Dispatch Logic ---
-fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> {
+fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> { // Error is crbrs_lib::Error
     match command {
         Commands::Compile {
             input_file,
@@ -128,8 +129,56 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
             compiler,
         } => {
             log::info!("Executing Compile command for file: {:?}", input_file);
-            crbrs_lib::compile_file(input_file, output_log, compiler, settings)?;
-            println!("Compile command finished (placeholder).");
+            match crbrs_lib::compile_file(input_file.clone(), output_log, compiler, settings) {
+                Ok(_) => {
+                    // Success messages are printed by the library function
+                }
+                Err(e) => {
+                    match &e {
+                        Error::CompilationFailed { file_path, errors, raw_log } => {
+                            log::error!(
+                                "CompilationFailed for {}: {:?}, Raw Log: '{}'",
+                                file_path.display(), errors, raw_log
+                            );
+                            eprintln!("Error: Compilation of '{}' failed.", file_path.display());
+                            if errors.is_empty() {
+                                eprintln!("Compiler reported failure. Full log output:");
+                                eprintln!("--------------------------------------------------");
+                                eprintln!("{}", raw_log.trim());
+                                eprintln!("--------------------------------------------------");
+                            } else {
+                                eprintln!("Specific errors found:");
+                                for detail in errors {
+                                    if !detail.file_path_in_log.is_empty() && detail.file_path_in_log != input_file.file_name().unwrap_or_default().to_string_lossy() {
+                                        eprintln!("  In file (from log): {}", detail.file_path_in_log);
+                                    }
+                                    if let Some(line_num) = detail.line {
+                                        eprintln!("  Line {}: {}", line_num, detail.message);
+                                    } else {
+                                        eprintln!("  Error: {}", detail.message);
+                                    }
+                                }
+                                eprintln!("\n(See full compiler log in the .log file for more details)");
+                            }
+                        }
+                        Error::GenericCompilationFailedWithLog { file_path, raw_log } => {
+                            log::error!(
+                                "GenericCompilationFailedWithLog for {}: Raw Log: '{}'",
+                                file_path.display(), raw_log
+                            );
+                            eprintln!("Error: Compilation of '{}' failed (generic).", file_path.display());
+                            eprintln!("Full log output:");
+                            eprintln!("--------------------------------------------------");
+                            eprintln!("{}", raw_log.trim());
+                            eprintln!("--------------------------------------------------");
+                        }
+                        _ => {
+                            log::error!("Compile command encountered an error: {}", e);
+                        }
+                    }
+                    return Err(e);
+                }
+            }
         }
         Commands::Compiler { action } => {
             match action {
@@ -147,50 +196,36 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                         for (id, info) in settings.installed_compilers.iter() {
                             println!(
                                 "  - ID: {}, Version: {}, Description: {}, Path: {:?}",
-                                id,
-                                info.version,
-                                info.description,
-                                info.install_subdir
+                                id, info.version, info.description, info.install_subdir
                             );
                         }
                     }
                 }
-                // --- HANDLER FOR ListAvailable ---
                 CompilerAction::ListAvailable => {
                     log::info!("Executing Compiler ListAvailable command...");
                     println!(
                         "Fetching available compilers from: {}",
                         settings.compiler_repository_url
                     );
-
-                    // Call the function in the library that fetches and parses the manifest
                     match crbrs_lib::installer::fetch_manifest(&settings.compiler_repository_url) {
                         Ok(manifest) => {
                             println!("Available Compilers (Remote - Manifest Version: {}):", manifest.manifest_version);
                             if manifest.compilers.is_empty() {
                                 println!("  (None found in manifest)");
                             } else {
-                                // Sort by ID for consistent output
                                 let mut sorted_compilers: Vec<_> = manifest.compilers.iter().collect();
                                 sorted_compilers.sort_by(|(id_a, _), (id_b, _)| id_a.cmp(id_b));
-
                                 for (id, entry) in sorted_compilers {
                                     println!(
                                         "  - ID: {:<30} Version: {:<15} Description: {}",
-                                        id,
-                                        entry.version,
-                                        entry.description
+                                        id, entry.version, entry.description
                                     );
                                 }
                             }
                         }
-                        Err(e) => {
-                            log::error!("Failed to fetch or parse remote manifest: {}", e);
-                            return Err(e); // Propagate the error
-                        }
+                        Err(e) => { log::error!("Failed to fetch or parse remote manifest: {}", e); return Err(e); }
                     }
                 }
-                // --- END OF ListAvailable HANDLER ---
                 CompilerAction::Remove { compiler_id } => {
                     log::info!("Executing Compiler Remove command for ID: {}", compiler_id);
                     crbrs_lib::installer::remove_compiler(settings, &compiler_id)?;
@@ -198,7 +233,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                 }
             }
         }
-        Commands::Config { action } => {
+        Commands::Config { action } => { // <<< --- FILLED IN SECTION --- >>>
             match action {
                 ConfigAction::Show => {
                     log::info!("Executing Config Show command...");
@@ -220,7 +255,9 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                     if settings.file_associations.is_empty() {
                         println!("    (None)");
                     } else {
-                        for (ext, id) in settings.file_associations.iter() {
+                        let mut sorted_associations: Vec<_> = settings.file_associations.iter().collect();
+                        sorted_associations.sort_by_key(|(ext, _)| *ext); // Sort by extension
+                        for (ext, id) in sorted_associations {
                             println!("    .{} -> {}", ext, id);
                         }
                     }
@@ -230,7 +267,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                     println!("{}", path.display());
                 }
                 ConfigAction::Set { key, value } => {
-                    log::info!("Executing Config Set command (Key: {}, Value: {})", key, &value);
+                    log::info!("Executing Config Set command (Key: '{}', Value: '{}')", key, &value);
                     match key.as_str() {
                         "compiler_repository_url" => settings.compiler_repository_url = value.clone(),
                         "wine_path" => settings.wine_path = Some(value.clone()),
@@ -238,40 +275,39 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                         _ => {
                             let err_msg = format!("Unknown configuration key: {}", key);
                             log::error!("{}", err_msg);
-                            // Ensure you're using a valid variant of your Error enum here
-                            // This depends on how crbrs_lib::Error::Config is structured
-                            // If it takes a config::ConfigError, you might need:
+                            // Assuming crbrs_lib::Error::Config wraps config::ConfigError
+                            // and config::ConfigError::Message is a valid way to create it
                             return Err(Error::Config(config::ConfigError::Message(err_msg)));
-                            // Or if it's a custom string variant:
-                            // return Err(Error::ConfigError(err_msg));
                         }
                     }
-                    println!("Set '{}' = '{}'", key, value);
+                    println!("Set '{}' = '{}'", key, value); // 'value' is still valid due to clone
                     crbrs_lib::config::save_settings(settings)?;
                 }
                 ConfigAction::SetAssociation {
                     extension,
                     compiler_id,
                 } => {
+                    let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     log::info!(
                         "Executing Config SetAssociation command (Ext: .{}, ID: {})",
-                        extension.trim_start_matches('.').to_lowercase(), // Use cleaned extension for log
+                        cleaned_ext,
                         compiler_id
                     );
-                    let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     if cleaned_ext.is_empty() || cleaned_ext.contains('.') {
                         return Err(Error::InvalidExtension(extension));
                     }
-                    settings.file_associations.insert(cleaned_ext.clone(), compiler_id.clone());
+                    settings
+                        .file_associations
+                        .insert(cleaned_ext.clone(), compiler_id.clone());
                     println!("Associated '.{}' with compiler '{}'", cleaned_ext, compiler_id);
                     crbrs_lib::config::save_settings(settings)?;
                 }
                 ConfigAction::UnsetAssociation { extension } => {
+                    let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     log::info!(
                         "Executing Config UnsetAssociation command (Ext: .{})",
-                        extension.trim_start_matches('.').to_lowercase() // Use cleaned extension for log
+                        cleaned_ext
                     );
-                    let cleaned_ext = extension.trim_start_matches('.').to_lowercase();
                     if settings.file_associations.remove(&cleaned_ext).is_some() {
                         println!("Removed association for '.{}'", cleaned_ext);
                         crbrs_lib::config::save_settings(settings)?;
@@ -280,7 +316,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                     }
                 }
             }
-        }
+        } // <<< --- END OF FILLED IN SECTION --- >>>
     }
     Ok(())
 }

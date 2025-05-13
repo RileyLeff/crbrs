@@ -405,7 +405,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "crbrs-cli"
+name = "crbrs"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
@@ -427,6 +427,7 @@ dependencies = [
  "config",
  "directories",
  "log",
+ "regex",
  "reqwest",
  "serde",
  "thiserror",

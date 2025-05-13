@@ -1,11 +1,11 @@
 // FILE: crbrs-lib/src/installer.rs
 
-use crate::{Error, Manifest, ManifestCompilerEntry, CompilerInfo, Settings};
+use crate::{Error, Manifest, CompilerInfo, Settings};
 use crate::config::{get_compiler_storage_path, save_settings}; // Assuming save_settings is pub
 use reqwest::blocking::Client; // Using blocking client for simplicity for now
-use std::fs::{self, File};
-use std::io::{self, Cursor, Read, Write}; // Added Write for file saving
-use std::path::{Path, PathBuf};
+use std::fs::{self};
+use std::io::{self, Cursor, Read}; // Added Write for file saving
+use std::path::PathBuf;
 use zip::ZipArchive; // Make sure `zip` crate is in crbrs-lib/Cargo.toml
 
 // If you plan to do SHA256 verification

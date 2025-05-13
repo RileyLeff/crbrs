@@ -1,5 +1,5 @@
 [package]
-name = "crbrs-cli"
+name = "crbrs"
 version.workspace = true # Inherit version from workspace
 edition.workspace = true # Inherit edition from workspace
 authors.workspace = true # Inherit authors from workspace

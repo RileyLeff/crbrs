@@ -1,0 +1,6 @@
+brokenexample.cr2 -- Compile Failed!
+
+line 20: Unknown instruction DataBIGBOOTYTable (Test,1,-1) .
+line 20: Too many parameters:  Test.
+line 32: Unknown instruction BeginMEDIUMBOOTYProg
+.
