@@ -22,7 +22,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             // TODO: Consider a more permanent default URL later
-            compiler_repository_url: "https://example.com/compilers.toml".to_string(),
+            compiler_repository_url: "https://raw.githubusercontent.com/RileyLeff/campbell-scientific-compilers/refs/heads/main/compilers.toml".to_string(),
             compiler_storage_path: None, // We'll resolve this to a default path at runtime
             installed_compilers: HashMap::new(),
             file_associations: HashMap::new(),
