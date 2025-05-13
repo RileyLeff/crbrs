@@ -3,7 +3,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crbrs",
+    "crbrs-cli",
     "crbrs-lib",
     # Add future crates like "crbrs-lsp" here later
 ]
