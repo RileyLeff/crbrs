@@ -1,15 +1,14 @@
 // FILE: crbrs-cli/src/main.rs
 
 use clap::{Parser, Subcommand};
-use crbrs_lib::{Error, Settings, CompilationErrorDetail}; // Import CompilationErrorDetail
+use crbrs_lib::{Error, Settings, CompilationErrorDetail}; // Ensure CompilationErrorDetail is imported
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about = "CRBasic Toolchain for Rustaceans", long_about = None)]
+#[command(author, version, name = "crbrs", about = "CRBasic Toolchain for Rustaceans", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
 }
@@ -20,11 +19,9 @@ enum Commands {
     Compile {
         /// Input CRBasic file path
         input_file: PathBuf,
-
-        /// Optional: Output path for compiler log/info
-        #[arg(short, long)]
+        /// Optional: Output path for compiler log/info (compiler writes to this file)
+        #[arg(long)] // Changed from short 'o' to avoid conflict if we add other short flags
         output_log: Option<PathBuf>,
-
         /// Optional: ID of the compiler to use (overrides file association)
         #[arg(short, long)]
         compiler: Option<String>,
@@ -63,7 +60,7 @@ enum ConfigAction {
     Show,
     /// Show the path to the configuration file
     Path,
-    /// Set a specific configuration value (e.g., wine_path, compiler_repository_url)
+    /// Set a specific configuration value
     Set { key: String, value: String },
     /// Associate a file extension (e.g., 'cr2') with a compiler ID
     SetAssociation {
@@ -81,102 +78,119 @@ enum ConfigAction {
 
 fn main() {
     let cli = Cli::parse();
+
     let log_level = match cli.verbose {
-        0 => log::LevelFilter::Warn,
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
+        0 => log::LevelFilter::Error, // Default: Show only CRITICAL errors from our code.
+        1 => log::LevelFilter::Warn,  // -v: Show WARN (like Wine stderr) and ERROR.
+        2 => log::LevelFilter::Info,  // -vv: Show INFO, WARN, ERROR.
+        3 => log::LevelFilter::Debug, // -vvv: Show DEBUG, INFO, WARN, ERROR.
+        _ => log::LevelFilter::Trace, // -vvvv or more: Show TRACE and all above.
     };
     env_logger::Builder::new()
         .filter_level(log_level)
-        .format_timestamp_secs()
+        .format_timestamp(None)      // Cleaner error logs if they appear by default
+        .format_module_path(false) //
+        .format_target(false)      //
         .init();
 
-    log::debug!("CLI arguments parsed: {:?}", cli);
+    log::debug!("CLI arguments parsed: {:?}. Effective log level: {}", cli, log_level);
 
     let mut settings = match crbrs_lib::config::load_settings() {
-        Ok(s) => s,
+        Ok(s) => {
+            log::debug!("Settings loaded successfully: {:?}", s);
+            s
+        }
         Err(e) => {
-            log::error!("Failed to load settings: {}", e);
-            eprintln!("Error loading configuration: {}", e);
+            log::error!("Critical error loading settings: {}", e); // Shows at default Error level
+            eprintln!("Error: Could not load configuration: {}", e);
             std::process::exit(1);
         }
     };
-    log::debug!("Settings loaded successfully.");
 
     if let Err(e) = run_command(cli.command, &mut settings) {
-        // Specific handling for structured compilation errors is now inside the Compile arm
-        // Generic error printing for all other unhandled errors from run_command
+        // Log the full error detail if verbosity allows (or if it's an ERROR level log)
+        // The specific user-facing `eprintln!` for compilation errors is handled in `run_command`.
+        // This `log::error!` ensures other types of errors from `run_command` are logged.
         if !matches!(e, Error::CompilationFailed {..} | Error::GenericCompilationFailedWithLog {..}) {
-             log::error!("Command execution failed: {}", e); // Log the full error
+            log::error!("Command execution failed with error: {}", e);
         }
-        // The error message for compilation failures is printed within the Compile arm.
-        // For other errors, the Display impl of the error enum will be used here.
-        eprintln!("Error: {}", e);
+
+
+        // Print user-facing message ONLY IF it wasn't a compilation error
+        // (because those are handled with more detail in the Compile arm of run_command).
+        match e {
+            Error::CompilationFailed { .. } | Error::GenericCompilationFailedWithLog { .. } => {
+                // User-facing message already printed by the Compile arm's error handler.
+            }
+            _ => {
+                // For all other error types, print their Display message to the user.
+                eprintln!("Error: {}", e);
+            }
+        }
         std::process::exit(1);
     }
 
     log::debug!("Command executed successfully.");
 }
-// FILE: crbrs-cli/src/main.rs
-// ... (imports, structs, main function - same as previous complete main.rs) ...
 
-fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> { // Error is crbrs_lib::Error
+fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> {
     match command {
         Commands::Compile {
             input_file,
-            output_log,
+            output_log, // This is Option<PathBuf> from clap
             compiler,
         } => {
-            log::info!("Executing Compile command for file: {:?}", input_file);
-            match crbrs_lib::compile_file(input_file.clone(), output_log, compiler, settings) {
+            log::info!("Executing Compile command for file: {:?}", input_file); // Shows with -vv
+            match crbrs_lib::compile_file(input_file.clone(), output_log.clone(), compiler, settings) {
                 Ok(_) => {
-                    // Success messages are printed by the library function
+                    // Success messages (like ✅) are printed by the library function directly.
                 }
                 Err(e) => {
+                    // This is where we print user-facing messages for COMPILATION errors.
                     match &e {
                         Error::CompilationFailed { file_path, errors, raw_log } => {
-                            log::error!(
-                                "CompilationFailed for {}: {:?}, Raw Log: '{}'",
-                                file_path.display(), errors, raw_log
-                            );
-                            eprintln!("Error: Compilation of '{}' failed.", file_path.display());
+                            eprintln!("\n❌ Compilation of '{}' failed.", file_path.display());
                             if errors.is_empty() {
-                                eprintln!("Compiler reported failure. Full log output:");
-                                eprintln!("--------------------------------------------------");
-                                eprintln!("{}", raw_log.trim());
-                                eprintln!("--------------------------------------------------");
+                                eprintln!("  Compiler reported errors, but no specific error lines were parsed.");
+                                eprintln!("  (Use '-v' with `crbrs compile` to see raw compiler stdout/stderr)");
+                                log::error!(
+                                    "CompilationFailed for {} but no structured errors parsed. Raw output (stdout from compiler):\n{}",
+                                    file_path.display(), raw_log
+                                );
                             } else {
                                 eprintln!("Specific errors found:");
                                 for detail in errors {
-                                    if !detail.file_path_in_log.is_empty() && detail.file_path_in_log != input_file.file_name().unwrap_or_default().to_string_lossy() {
-                                        eprintln!("  In file (from log): {}", detail.file_path_in_log);
-                                    }
                                     if let Some(line_num) = detail.line {
-                                        eprintln!("  Line {}: {}", line_num, detail.message);
+                                        eprintln!("  Line {}: {}", line_num, detail.message.trim());
                                     } else {
-                                        eprintln!("  Error: {}", detail.message);
+                                        eprintln!("  Error: {}", detail.message.trim());
                                     }
                                 }
-                                eprintln!("\n(See full compiler log in the .log file for more details)");
+                            }
+                            if let Some(log_p) = output_log { // User explicitly asked for a log file
+                                 eprintln!("\n(Full compiler log also available in '{}')", log_p.display());
+                            } else { // Default case: no log file created by crbrs
+                                 eprintln!("\n(Use '-v' with `crbrs compile` to see raw compiler output, or use --output-log to save the compiler's log)");
                             }
                         }
                         Error::GenericCompilationFailedWithLog { file_path, raw_log } => {
-                            log::error!(
-                                "GenericCompilationFailedWithLog for {}: Raw Log: '{}'",
-                                file_path.display(), raw_log
-                            );
-                            eprintln!("Error: Compilation of '{}' failed (generic).", file_path.display());
-                            eprintln!("Full log output:");
+                            eprintln!("\n❌ Compilation of '{}' failed (compiler output format unrecognized or process error).", file_path.display());
+                            eprintln!("Raw compiler output:");
                             eprintln!("--------------------------------------------------");
                             eprintln!("{}", raw_log.trim());
                             eprintln!("--------------------------------------------------");
+                            if let Some(log_p) = output_log {
+                                 eprintln!("\n(Full compiler log also available in '{}')", log_p.display());
+                            }
                         }
                         _ => {
-                            log::error!("Compile command encountered an error: {}", e);
+                            // Other errors (like WineNotFound, IoError before compilation attempt, etc.)
+                            // will be logged by main's log::error! and their Display message printed by main's eprintln!
+                            // We just log them here if they reached this point from the compile_file call.
+                            log::error!("Compile command failed with an unexpected library error: {}", e);
                         }
                     }
-                    return Err(e);
+                    return Err(e); // Propagate the original error to be caught by main's handler for exit code
                 }
             }
         }
@@ -185,7 +199,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                 CompilerAction::Install { compiler_id } => {
                     log::info!("Executing Compiler Install command for ID: {}", compiler_id);
                     crbrs_lib::installer::install_compiler(settings, &compiler_id)?;
-                    println!("Compiler '{}' installation process finished.", compiler_id);
+                    println!("✅ Compiler '{}' installed successfully.", compiler_id);
                 }
                 CompilerAction::List => {
                     log::info!("Executing Compiler List command...");
@@ -193,10 +207,12 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                     if settings.installed_compilers.is_empty() {
                         println!("  (None)");
                     } else {
-                        for (id, info) in settings.installed_compilers.iter() {
+                        let mut sorted_compilers: Vec<_> = settings.installed_compilers.values().collect();
+                        sorted_compilers.sort_by_key(|info| &info.id);
+                        for info in sorted_compilers {
                             println!(
-                                "  - ID: {}, Version: {}, Description: {}, Path: {:?}",
-                                id, info.version, info.description, info.install_subdir
+                                "  - ID: {:<30} Version: {:<15} Description: {}",
+                                info.id, info.version, info.description,
                             );
                         }
                     }
@@ -229,11 +245,11 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                 CompilerAction::Remove { compiler_id } => {
                     log::info!("Executing Compiler Remove command for ID: {}", compiler_id);
                     crbrs_lib::installer::remove_compiler(settings, &compiler_id)?;
-                    println!("Compiler '{}' removal process finished.", compiler_id);
+                    println!("🗑️ Compiler '{}' removed successfully.", compiler_id);
                 }
             }
         }
-        Commands::Config { action } => { // <<< --- FILLED IN SECTION --- >>>
+        Commands::Config { action } => {
             match action {
                 ConfigAction::Show => {
                     log::info!("Executing Config Show command...");
@@ -256,7 +272,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                         println!("    (None)");
                     } else {
                         let mut sorted_associations: Vec<_> = settings.file_associations.iter().collect();
-                        sorted_associations.sort_by_key(|(ext, _)| *ext); // Sort by extension
+                        sorted_associations.sort_by_key(|(ext, _)| *ext);
                         for (ext, id) in sorted_associations {
                             println!("    .{} -> {}", ext, id);
                         }
@@ -274,13 +290,11 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                         "compiler_storage_path" => settings.compiler_storage_path = Some(PathBuf::from(value.clone())),
                         _ => {
                             let err_msg = format!("Unknown configuration key: {}", key);
-                            log::error!("{}", err_msg);
-                            // Assuming crbrs_lib::Error::Config wraps config::ConfigError
-                            // and config::ConfigError::Message is a valid way to create it
+                            // log::error!("{}", err_msg); // Already logged by main's catch-all
                             return Err(Error::Config(config::ConfigError::Message(err_msg)));
                         }
                     }
-                    println!("Set '{}' = '{}'", key, value); // 'value' is still valid due to clone
+                    println!("Set '{}' = '{}'", key, value);
                     crbrs_lib::config::save_settings(settings)?;
                 }
                 ConfigAction::SetAssociation {
@@ -316,7 +330,7 @@ fn run_command(command: Commands, settings: &mut Settings) -> Result<(), Error> 
                     }
                 }
             }
-        } // <<< --- END OF FILLED IN SECTION --- >>>
+        }
     }
     Ok(())
 }
