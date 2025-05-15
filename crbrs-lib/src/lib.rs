@@ -106,6 +106,13 @@ pub enum Error {
     #[error("Compiler '{0}' not found in configuration.")]
     CompilerNotFound(String),
 
+    #[error("SHA256 checksum mismatch for compiler '{compiler_id}'. Expected: '{expected}', Got: '{actual}'.")]
+    ChecksumMismatch { // <-- NEW ERROR VARIANT
+        compiler_id: String,
+        expected: String,
+        actual: String,
+    },
+
     #[error("No compiler associated with file extension '.{0}'. Please configure an association.")]
     NoCompilerForExtension(String),
 
