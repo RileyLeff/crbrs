@@ -3,6 +3,12 @@ name = "crbrs-lib"
 version.workspace = true # Inherit version from workspace
 edition.workspace = true # Inherit edition from workspace
 authors.workspace = true # Inherit authors from workspace
+license.workspace = true # Inherit license from workspace  <-- ADD THIS
+description.workspace = true # Inherit description from workspace <-- ADD THIS
+homepage.workspace = true # Inherit homepage from workspace <-- ADD THIS
+repository.workspace = true # Inherit repository from workspace <-- ADD THIS
+keywords.workspace = true # Inherit keywords from workspace <-- ADD THIS
+categories.workspace = true # Inherit categories from workspace <-- ADD THIS
 
 [dependencies]
 # Inherit from workspace dependencies

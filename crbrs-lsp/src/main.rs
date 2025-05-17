@@ -19,7 +19,7 @@ struct DocumentState {
 }
 
 fn file_uri_to_pathbuf(uri: &Uri) -> Result<PathBuf, String> {
-    if uri.scheme().map_or(false, |s| s.as_str() == "file") {
+    if uri.scheme().is_some_and(|s| s.as_str() == "file") {
         let path_str = uri.path().as_str();
         #[cfg(windows)]
         let corrected_path_str = if path_str.starts_with('/') && path_str.get(1..3).map_or(false, |s| s.chars().nth(1) == Some(':')) {
