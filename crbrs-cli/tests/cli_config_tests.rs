@@ -2,7 +2,7 @@
 
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command; // Run programs
 use tempfile::TempDir; // Create temporary directories automatically cleaned up
 

@@ -3,9 +3,9 @@
 use crate::{Error, Manifest, CompilerInfo, Settings}; // ManifestCompilerEntry is not directly used here now
 use crate::config::{get_compiler_storage_path, save_settings};
 use reqwest::blocking::Client;
-use std::fs::{self, File}; // File might not be strictly needed if not writing intermediate files
+use std::fs::{self}; // File might not be strictly needed if not writing intermediate files
 use std::io::{self, Cursor}; // Removed Read, Write if not directly used
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use zip::ZipArchive;
 
 // --- Add imports for SHA256 ---

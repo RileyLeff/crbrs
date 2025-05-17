@@ -4,7 +4,7 @@ use crate::{CompilationErrorDetail, Error, Settings};
 use regex::Regex;
 // std::fs is not explicitly needed here anymore unless we were to do something
 // special with the user-requested log file path before passing it to the compiler.
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
 
 // Helper function to determine if we are likely on a non-Windows OS

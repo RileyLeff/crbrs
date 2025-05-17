@@ -8,6 +8,7 @@ use lsp_types::{
     Position, PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, Uri,
 };
+use lsp_types::notification::Notification as LspNotificationTrait; // breaks if i don't rename because I already have a lsp_server::Notification!
 use crbrs_lib::{Settings, CompilationErrorDetail}; // Import from your lib
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -99,7 +100,7 @@ fn main_loop(
                             let content = change.text;
                             let version = params.text_document.version;
                             eprint!("LSP Changed: {:?}", uri);
-                            open_documents.lock().unwrap().insert(uri.clone(), DocumentState { uri: uri.clone(), content: content.clone(), version });
+                            open_documents.lock().unwrap().insert(uri.clone(), DocumentState { uri: uri.clone(), content: content.clone(), version: Some(version) });
                             publish_diagnostics_for_uri(&connection, uri, &content, settings.lock().unwrap().clone())?;
                         }
                     }
@@ -147,7 +148,7 @@ fn generate_diagnostics(uri: Uri, content: &str, settings: &Settings) -> Vec<Dia
     let file_path = match uri.to_file_path() {
         Ok(p) => p,
         Err(_) => {
-            eprintln!("LSP Error: Could not convert URI to file path: {}", uri);
+            eprintln!("LSP Error: Could not convert URI to file path: {:?}", uri);
             return diagnostics; // Cannot compile if not a file path
         }
     };

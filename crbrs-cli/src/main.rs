@@ -1,7 +1,7 @@
 // FILE: crbrs-cli/src/main.rs
 
 use clap::{Parser, Subcommand};
-use crbrs_lib::{Error, Settings, CompilationErrorDetail}; // Ensure CompilationErrorDetail is imported
+use crbrs_lib::{Error, Settings}; // Ensure CompilationErrorDetail is imported
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
