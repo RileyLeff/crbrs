@@ -3,9 +3,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "crbrs-cli",
-    "crbrs-lib", "crbrs-lsp",
-    # Add future crates like "crbrs-lsp" here later
+    "crbrs-cli", # named just "crbrs" internally
+    "crbrs-lib", 
+    "crbrs-lsp",
 ]
 
 # Optional: Define shared metadata or profiles for the whole workspace
@@ -13,6 +13,13 @@ members = [
 version = "0.1.0"
 edition = "2021" # Consider using 2021 edition unless you have specific reasons for 2024
 authors = ["Riley Leff <rileyleff@gmail.com>"] # Replace with your info
+license = "MIT OR Apache-2.0" # Specify the dual license (binaries are in separate repo so these licenses should be fine)
+description = "A cross-platform command-line toolchain and LSP for Campbell Scientific CRBasic dataloggers." # Add a concise description
+homepage = "https://github.com/RileyLeff/crbrs" # Link to your project homepage (usually GitHub repo)
+repository = "https://github.com/RileyLeff/crbrs.git" # Link to your project repository
+
+keywords = ["scientific", "data-logger", "crbasic", "campbell", "lsp", "datalogger", "CR200X", "CR300X", "CR1000", "environmental"]
+categories = ["command-line-interface", "development-tools", "parsing", "science"]
 
 [workspace.dependencies]
 # Define dependencies used by multiple crates here to ensure version consistency
