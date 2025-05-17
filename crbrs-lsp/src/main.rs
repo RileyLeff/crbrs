@@ -1,13 +1,13 @@
 // crbrs-lsp/src/main.rs
 use lsp_server::{Connection, Message, Notification as LspServerNotification, Response};
 use lsp_types::{
-    notification::{PublishDiagnostics, Notification as LspNotificationTrait},
+    notification::Notification as LspNotificationTrait,
     ClientCapabilities, Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams,
     Position, PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, Uri,
 };
-use crbrs_lib::{Settings, Error as CrbrsError, CompilationErrorDetail};
+use crbrs_lib::{Settings, Error as CrbrsError};
 use std::collections::HashMap;
 use std::path::PathBuf; // Keep this for file_uri_to_pathbuf
 use std::sync::{Arc, Mutex};
