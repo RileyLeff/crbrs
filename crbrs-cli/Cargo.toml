@@ -3,10 +3,16 @@ name = "crbrs"
 version.workspace = true # Inherit version from workspace
 edition.workspace = true # Inherit edition from workspace
 authors.workspace = true # Inherit authors from workspace
+license.workspace = true # Inherit license from workspace  <-- ADD THIS
+description.workspace = true # Inherit description from workspace <-- ADD THIS
+homepage.workspace = true # Inherit homepage from workspace <-- ADD THIS
+repository.workspace = true # Inherit repository from workspace <-- ADD THIS
+keywords.workspace = true # Inherit keywords from workspace <-- ADD THIS
+categories.workspace = true # Inherit categories from workspace <-- ADD THIS
 
 [dependencies]
 # Reference the library crate within the workspace
-crbrs-lib = { path = "../crbrs-lib" }
+crbrs-lib = { version = "0.1.0", path = "../crbrs-lib" }
 
 # Inherit from workspace dependencies
 clap = { workspace = true, features = ["derive"] }

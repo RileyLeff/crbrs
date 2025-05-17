@@ -3,9 +3,15 @@ name = "crbrs-lsp"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true # Inherit license from workspace  <-- ADD THIS
+description.workspace = true # Inherit description from workspace <-- ADD THIS
+homepage.workspace = true # Inherit homepage from workspace <-- ADD THIS
+repository.workspace = true # Inherit repository from workspace <-- ADD THIS
+keywords.workspace = true # Inherit keywords from workspace <-- ADD THIS
+categories.workspace = true # Inherit categories from workspace <-- ADD THIS
 
 [dependencies]
-crbrs-lib = { path = "../crbrs-lib"}
+crbrs-lib = { version = "0.1.0", path = "../crbrs-lib" }
 lsp-server = { workspace = true }
 lsp-types = { workspace = true }
 serde_json = { workspace = true }

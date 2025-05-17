@@ -18,7 +18,7 @@ description = "A cross-platform command-line toolchain and LSP for Campbell Scie
 homepage = "https://github.com/RileyLeff/crbrs" # Link to your project homepage (usually GitHub repo)
 repository = "https://github.com/RileyLeff/crbrs.git" # Link to your project repository
 
-keywords = ["scientific", "data-logger", "crbasic", "campbell", "lsp", "datalogger", "CR200X", "CR300X", "CR1000", "environmental"]
+keywords = ["scientific", "data-logger", "crbasic", "campbell", "environmental"]
 categories = ["command-line-interface", "development-tools", "parsing", "science"]
 
 [workspace.dependencies]
