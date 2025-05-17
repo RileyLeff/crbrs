@@ -10,7 +10,7 @@ members = [
 
 # Optional: Define shared metadata or profiles for the whole workspace
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021" # Consider using 2021 edition unless you have specific reasons for 2024
 authors = ["Riley Leff <rileyleff@gmail.com>"] # Replace with your info
 license = "MIT OR Apache-2.0" # Specify the dual license (binaries are in separate repo so these licenses should be fine)
@@ -33,7 +33,7 @@ config = { version = "0.14", features = ["toml"] } # config-rs renamed to config
 directories = "6.0"
 reqwest = { version = "0.12", features = ["blocking", "json"] } # Start with blocking for simplicity
 toml = "0.8"
-zip = "2.6"
+zip = "3.0"
 sha2 = "0.10"
 regex = "1.10"
 

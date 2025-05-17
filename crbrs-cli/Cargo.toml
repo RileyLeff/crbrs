@@ -9,10 +9,11 @@ homepage.workspace = true # Inherit homepage from workspace <-- ADD THIS
 repository.workspace = true # Inherit repository from workspace <-- ADD THIS
 keywords.workspace = true # Inherit keywords from workspace <-- ADD THIS
 categories.workspace = true # Inherit categories from workspace <-- ADD THIS
+readme = "README.md" # Added this line
 
 [dependencies]
 # Reference the library crate within the workspace
-crbrs-lib = { version = "0.1.0", path = "../crbrs-lib" }
+crbrs-lib = { version = "0.1.1", path = "../crbrs-lib" }
 
 # Inherit from workspace dependencies
 clap = { workspace = true, features = ["derive"] }
